@@ -7,6 +7,8 @@ import joblib
 import datetime
 from datetime import date
 
+st.set_page_config(layout="wide")
+
 # Load the pre-trained model
 @st.cache_resource
 def load_model():
@@ -88,7 +90,7 @@ def main():
     LE = load_label_encoder()
     countries, districts, regions, educations, labels = load_constants()
     
-    st.title("ВШГУ")  # TODO: ввести норм название и инструкцию пользователя
+    st.title("Система автоматического определения карьерных параметров (сфера деятельности, карьерная ступень)")  # TODO: ввести норм название и инструкцию пользователя
 
     # Input form
     st.header("Данные о пользователе")
