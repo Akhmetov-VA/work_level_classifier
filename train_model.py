@@ -68,7 +68,7 @@ df_val = df_val[cat_cols + text_cols + num_cols].copy()
 # define pipelines and transformer
 data_transformer =  ColumnTransformer([
     ('cat_encoder', OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1), cat_cols),
-    ('text_encoder', BERTEmbExtractor(batch_size=32), text_cols),
+    ('text_encoder', BERTEmbExtractor(device=torch.device('cpu'), batch_size=32), text_cols),
     ('num_features', 'passthrough', num_cols)
     ], remainder='drop', verbose_feature_names_out=True)
 
@@ -116,6 +116,8 @@ metrics(pipes[1], X_test, y_test[1], LE[1])
 
 # save pipes and transformer
 joblib.dump(pipes, 'pipelines.joblib')
+
+# data_prepare.steps[0][1].transformers[1][1].to_device(torch.device('cpu'))
 joblib.dump(data_prepare, 'data_prepare.joblib')
 joblib.dump(LE, 'label_encoders.joblib')
 

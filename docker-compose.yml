@@ -1,0 +1,10 @@
+version: '3'
+services:
+  classifier:
+    container_name: classifier
+    volumes:
+      - /home/admin01/vadim/classifier:/app
+    build: .
+    ports:
+      - "27362:8501"
+    command: ["streamlit", "run", "app.py"]

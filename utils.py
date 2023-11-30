@@ -14,11 +14,9 @@ from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-device = torch.device('cuda')
-
 
 class BERTEmbExtractor(BaseEstimator, TransformerMixin):
-    def __init__(self, tokenizer=None, model=None, columns=None, batch_size=128):
+    def __init__(self, device, tokenizer=None, model=None, columns=None, batch_size=128):
         if tokenizer:
             self.tokenizer = tokenizer
         else:
@@ -27,9 +25,9 @@ class BERTEmbExtractor(BaseEstimator, TransformerMixin):
         if model:
             self.model = model
         else:
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            self.model = AutoModel.from_pretrained("ai-forever/ruBert-base").to(device)
-            
+            self.model = AutoModel.from_pretrained("ai-forever/ruBert-base")
+        
+        self.device = device
         self.columns = columns
         self.batch_size = batch_size
         
@@ -42,7 +40,9 @@ class BERTEmbExtractor(BaseEstimator, TransformerMixin):
             
             batch_X = X[col].values[start:end]  # Extract a batch of data
             tokenized = self.tokenizer(batch_X.tolist(), padding = True, truncation = True, return_tensors="pt")
-            column_tokens = {k: torch.tensor(v).to(device) for k, v in tokenized.items()}
+            column_tokens = {k: torch.tensor(v).to(self.device) for k, v in tokenized.items()}
+            
+            self.model.to(self.device)
 
             hidden_state = self.model(**column_tokens) #dim : [batch_size(nr_sentences), tokens, emb_dim]
             emb = hidden_state.last_hidden_state[:,0,:].to("cpu")
@@ -82,6 +82,13 @@ class BERTEmbExtractor(BaseEstimator, TransformerMixin):
                 out.append(df_emb)
         
         return pd.concat(out, axis=1)
+    
+    def  to_device(self, device=None):
+        if device:
+            self.device = device
+        
+        self.model.to(self.device)
+        
     
     
 def find_best_ccp_aplpha(X_train, y_train, X_val, y_val):

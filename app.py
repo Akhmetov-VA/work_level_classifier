@@ -88,7 +88,7 @@ def main():
     LE = load_label_encoder()
     countries, districts, regions, educations, labels = load_constants()
     
-    st.title("ML Model Prediction App")
+    st.title("ВШГУ")  # TODO: ввести норм название и инструкцию пользователя
 
     # Input form
     st.header("Данные о пользователе")
@@ -112,9 +112,10 @@ def main():
     if education == "Другое": 
         education = st.text_input("Введите другой регион...")
     
-    workplace = st.text_input("Место работы", None)
     jobname = st.text_input('Наименование текущей должности', None)
     
+    workplace = st.text_input("Место работы", None)
+
     if workplace and jobname:
         additional_data = {'Номер': None,
                     'ИНН': None,
@@ -158,8 +159,8 @@ def main():
             processed_data = preprocess_input(input_df.copy(), data_transform)
 
             # Display the processed data
-            st.subheader("Processed Input Data")
-            st.write(processed_data)
+            # st.subheader("Processed Input Data")
+            # st.write(processed_data)
 
             # Make prediction
             prediction1 = predict(pipes[0], processed_data)
