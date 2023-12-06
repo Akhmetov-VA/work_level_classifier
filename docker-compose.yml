@@ -5,6 +5,38 @@ services:
     volumes:
       - /home/admin01/vadim/classifier:/app
     build: .
+    depends_on:
+      - db
+    links:
+      - db:db
+    networks:
+      - db
     ports:
       - "27362:8501"
+
     command: ["streamlit", "run", "app.py"]
+
+  db:
+    container_name: postgres_wsgu
+    image: postgres:16.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      PGDATA: "/data/postgres"
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+       - postgres:/data/postgres
+       - ${PWD}/docker_postgres_init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+    networks:
+      - db
+    ports:
+      - "5433:5432"
+
+networks:
+  db:
+    driver: bridge
+
+volumes:
+  postgres:
+    driver: local

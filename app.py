@@ -7,7 +7,14 @@ import joblib
 import datetime
 from datetime import date
 
+from postgres import PGInstance
+
 st.set_page_config(layout="wide")
+
+@st.cache_resource
+def load_pg_instance():
+    pg_instance = PGInstance()
+    return pg_instance
 
 # Load the pre-trained model
 @st.cache_resource
@@ -83,11 +90,15 @@ def preprocess_input(data, data_transform):
 def predict(model, data):
     return model.predict(data)
 
+
+
 # Streamlit app
 def main():
     pipes = load_model()
     data_transform = load_data_transform()
     LE = load_label_encoder()
+    pg_instance = load_pg_instance()
+    
     countries, districts, regions, educations, labels = load_constants()
     
     st.title("Система автоматического определения карьерных параметров (сфера деятельности, карьерная ступень)")  # TODO: ввести норм название и инструкцию пользователя
@@ -151,12 +162,9 @@ def main():
             input_data = input_data | additional_data
             
             input_df = pd.DataFrame([input_data])
-            
-            # additional_df = pd.DataFrame([additional_data])
-            
+                        
             st.write(input_df)
-            # st.write(additional_df)
-
+            
             # Preprocess input data
             processed_data = preprocess_input(input_df.copy(), data_transform)
 
@@ -174,6 +182,44 @@ def main():
             
             st.subheader("Карьерная ступень по Классификатору ФОИР")
             st.write(LE[1].classes_[prediction2])
+            
+            print(LE[0].classes_[prediction1][0])
+            
+            # write input data into database
+            sql = """
+            INSERT INTO queries (gender, dob, country, district, region, education, workplace, jobname, inn, 
+                                okwed_type, okwed_1, okwed_2, okwed_3, capital_type, capital_value, okogu_type, 
+                                employee_cnt, smp_cat, taxes_2022, scope_work, сareer_stage) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+            """
+            
+            pg_instance.cursor.execute(sql, (input_data['Пол'], 
+                                             input_data["Дата рождения"], 
+                                             input_data['Страна проживания'],
+                                             input_data['Федеральный округ'], 
+                                             input_data['Регион'], 
+                                             input_data['Уровень образования'], 
+                                             input_data['Место работы'], 
+                                             input_data['Наименование текущей должности'], 
+                                             input_data['ИНН'], 
+                                             input_data['Вид экономической деятельности, ОКВЭД'],
+                                             input_data['Доп вид экономической деятельности_1'],
+                                             input_data['Доп вид экономической деятельности_2'],
+                                             input_data['Доп вид экономической деятельности_3'],
+                                             input_data['Уставный капитал, тип'],
+                                             input_data['Уставный капитал, сумма'],
+                                             input_data['Тип по ОКОГУ'],
+                                             input_data['Среднесписочная численность сотрудников'],
+                                             input_data['Категория из реестра СМП'],
+                                             input_data['Сумма уплаченных налогов за 2020'],
+                                             str(LE[0].classes_[prediction1][0]),
+                                             int(LE[1].classes_[prediction2][0])))
 
+    if st.button('Показать последние запросы'):
+        pg_instance.cursor.execute('select * from queries')
+        data = pg_instance.cursor.fetchall()
+        st.write(pd.DataFrame(data))
+        
+        
 if __name__ == "__main__":
     main()
