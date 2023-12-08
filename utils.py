@@ -14,9 +14,26 @@ from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+class PipePredFeature(BaseEstimator, TransformerMixin):
+    def __init__(self, pipe, col=None):
+        super().__init__()
+        self.pipe = pipe
+        if col:
+            self.col = col
+        else:
+            self.col = 'pipe_pred'
+        
+    def fit(self, X, y):
+        self.pipe.fit(X, y)
+        return self
+    
+    def transform(self, X):
+        pred = self.pipe.predict(X)
+        return np.hstack([X, pred.reshape(-1, 1)])
+
 
 class BERTEmbExtractor(BaseEstimator, TransformerMixin):
-    def __init__(self, device, tokenizer=None, model=None, columns=None, batch_size=128):
+    def __init__(self, device, tokenizer=None, model=None, columns=None, batch_size=32, n_features=0.99):
         if tokenizer:
             self.tokenizer = tokenizer
         else:
@@ -26,10 +43,12 @@ class BERTEmbExtractor(BaseEstimator, TransformerMixin):
             self.model = model
         else:
             self.model = AutoModel.from_pretrained("ai-forever/ruBert-base")
-        
+              
         self.device = device
         self.columns = columns
         self.batch_size = batch_size
+        self.n_features = n_features
+        
         
     def bert_extract(self, X, col):
         out_emb = []
@@ -63,7 +82,7 @@ class BERTEmbExtractor(BaseEstimator, TransformerMixin):
             for col in self.columns:
                 df_emb = self.bert_extract(X, col)
                 
-                pca = PCA(0.99)
+                pca = PCA(self.n_features)
                 pca.set_output(transform='pandas')
                 
                 df_emb = pca.fit_transform(df_emb)
@@ -117,7 +136,6 @@ def find_best_ccp_aplpha(X_train, y_train, X_val, y_val):
                                 ccp_alpha=ccp_alpha)
         clf.fit(X_train, y_train)
         clfs.append(clf)
-    
     
     train_scores = [clf.score(X_train, y_train) for clf in clfs]
     test_scores = [clf.score(X_val, y_val) for clf in clfs]
