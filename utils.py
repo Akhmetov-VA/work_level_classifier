@@ -14,22 +14,17 @@ from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-class PipePredFeature(BaseEstimator, TransformerMixin):
-    def __init__(self, pipe, col=None):
-        super().__init__()
-        self.pipe = pipe
-        if col:
-            self.col = col
-        else:
-            self.col = 'pipe_pred'
+class FaissExtractor(BaseEstimator, TransformerMixin):
+    def __init__(self, index, k=3):
+        self.index = index
+        self.k = k
         
-    def fit(self, X, y):
-        self.pipe.fit(X, y)
+    def fit(self, X, y=None):
         return self
     
     def transform(self, X):
-        pred = self.pipe.predict(X)
-        return np.hstack([X, pred.reshape(-1, 1)])
+        distances, items = self.index.search(X, k=self.k)
+        return np.hstack([distances, items])
 
 
 class BERTEmbExtractor(BaseEstimator, TransformerMixin):
@@ -95,7 +90,7 @@ class BERTEmbExtractor(BaseEstimator, TransformerMixin):
         out = []
         with torch.no_grad():
             for col in self.columns:
-                df_emb = self.bert_extract(X, col)
+                df_emb = self.bert_extract(X, col)                  
                 df_emb = self.column_pca[col].transform(df_emb)
                 df_emb.columns = [f'{col}_{pca_col}' for pca_col in df_emb.columns]
                 out.append(df_emb)
@@ -131,7 +126,7 @@ def find_best_ccp_aplpha(X_train, y_train, X_val, y_val):
         clf = ExtraTreesClassifier(class_weight='balanced_subsample',
                                 oob_score=True, 
                                 bootstrap=True, 
-                                n_jobs=5, 
+                                n_jobs=20, 
                                 random_state=0, 
                                 ccp_alpha=ccp_alpha)
         clf.fit(X_train, y_train)

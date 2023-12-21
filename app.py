@@ -19,21 +19,21 @@ def load_pg_instance():
 # Load the pre-trained model
 @st.cache_resource
 def load_model():
-    file = "pipelines.joblib"
+    file = "models/pipelines.joblib"
     with open(file, 'rb') as f:
         pipes = joblib.load(f)
     return pipes
 
 @st.cache_resource
 def load_data_transform():
-    file = 'data_prepare.joblib'
+    file = 'models/data_prepare.joblib'
     with open(file, 'rb') as f:
         data_prepare = joblib.load(f)
     return data_prepare
 
 @st.cache_resource
 def load_label_encoder():
-    file = 'label_encoders.joblib'
+    file = 'models/label_encoders.joblib'
     with open(file, 'rb') as f:
         LE = joblib.load(f)
     return LE
@@ -91,7 +91,6 @@ def predict(model, data):
     return model.predict(data)
 
 
-
 # Streamlit app
 def main():
     pipes = load_model()
@@ -103,122 +102,130 @@ def main():
     
     st.title("Система автоматического определения карьерных параметров (сфера деятельности, карьерная ступень)")  # TODO: ввести норм название и инструкцию пользователя
 
-    # Input form
-    st.header("Данные о пользователе")
-    gender = st.radio("Пол", ["Мужской", "Женский"], index=None)
-    max_date = datetime.datetime.now().year - 18
-    dob = st.date_input("Дата рождения", date(1984, 1, 1), format="DD.MM.YYYY", min_value=date(1900, 1, 1), max_value=date(max_date, 1, 1))
-    
-    country = st.selectbox('Страна проживания', countries, index=None)
-    if country == 'Другое':
-        country = st.text_input("Введите другую страну...")
-    
-    district = st.selectbox("Федеральный округ", districts, index=None)
-    if district == "Другое": 
-        district = st.text_input("Введите другой федеральный округ...")
+    with st.sidebar:
+        uploaded_file = st.file_uploader("Выберите excel-файл")
         
-    region = st.selectbox('Регион', regions, index=None)
-    if region == "Другое": 
-        region = st.text_input("Введите другой регион...")
-    
-    education = st.selectbox("Уровень образования", educations, index=None)
-    if education == "Другое": 
-        education = st.text_input("Введите другой регион...")
-    
-    jobname = st.text_input('Наименование текущей должности', None)
-    
-    workplace = st.text_input("Место работы", None)
-
-    if workplace and jobname:
-        additional_data = {'Номер': None,
-                    'ИНН': None,
-                    'Вид экономической деятельности, ОКВЭД': None,
-                    'Доп вид экономической деятельности_1': None,
-                    'Доп вид экономической деятельности_2': None,
-                    'Доп вид экономической деятельности_3': None,
-                    'Уставный капитал, тип': None,
-                    'Уставный капитал, сумма': None,
-                    'Тип по ОКОГУ': None,
-                    'Среднесписочная численность сотрудников': None,
-                    'Категория из реестра СМП': None,
-                    'Сумма уплаченных налогов за 2020': None,       
-                    }
-                        
-        additional_data = select_workplaces(workplace, additional_data)
+    if uploaded_file:
+        uploat_df = pd.read_excel(uploaded_file)
+        st.write(uploat_df)
         
+    else:
+        # Input form
+        st.header("Данные о пользователе")
+        gender = st.radio("Пол", ["Мужской", "Женский"], index=None)
+        max_date = datetime.datetime.now().year - 18
+        dob = st.date_input("Дата рождения", date(1984, 1, 1), format="DD.MM.YYYY", min_value=date(1900, 1, 1), max_value=date(max_date, 1, 1))
         
-        if st.button("Вывести результаты"):
-            # Prepare input data
-            input_data = {
-                "Пол": gender,
-                "Дата рождения": dob,
-                'Страна проживания': country,
-                "Федеральный округ": district,
-                "Регион": region,
-                'Уровень образования': education,
-                "Место работы": workplace,
-                'Наименование текущей должности': jobname,
-            }
-            input_data = input_data | additional_data
+        country = st.selectbox('Страна проживания', countries, index=None)
+        if country == 'Другое':
+            country = st.text_input("Введите другую страну...")
+        
+        district = st.selectbox("Федеральный округ", districts, index=None)
+        if district == "Другое": 
+            district = st.text_input("Введите другой федеральный округ...")
             
-            input_df = pd.DataFrame([input_data])
-                        
-            st.write(input_df)
-            
-            # Preprocess input data
-            processed_data = preprocess_input(input_df.copy(), data_transform)
+        region = st.selectbox('Регион', regions, index=None)
+        if region == "Другое": 
+            region = st.text_input("Введите другой регион...")
+        
+        education = st.selectbox("Уровень образования", educations, index=None)
+        if education == "Другое": 
+            education = st.text_input("Введите другой регион...")
+        
+        jobname = st.text_input('Наименование текущей должности', None)
+        
+        workplace = st.text_input("Место работы", None)
 
-            # Display the processed data
-            # st.subheader("Processed Input Data")
-            # st.write(processed_data)
+        if workplace and jobname:
+            additional_data = {'Номер': None,
+                        'ИНН': None,
+                        'Вид экономической деятельности, ОКВЭД': None,
+                        'Доп вид экономической деятельности_1': None,
+                        'Доп вид экономической деятельности_2': None,
+                        'Доп вид экономической деятельности_3': None,
+                        'Уставный капитал, тип': None,
+                        'Уставный капитал, сумма': None,
+                        'Тип по ОКОГУ': None,
+                        'Среднесписочная численность сотрудников': None,
+                        'Категория из реестра СМП': None,
+                        'Сумма уплаченных налогов за 2020': None,       
+                        }
+                            
+            additional_data = select_workplaces(workplace, additional_data)
+            
+            
+            if st.button("Вывести результаты"):
+                # Prepare input data
+                input_data = {
+                    "Пол": gender,
+                    "Дата рождения": dob,
+                    'Страна проживания': country,
+                    "Федеральный округ": district,
+                    "Регион": region,
+                    'Уровень образования': education,
+                    "Место работы": workplace,
+                    'Наименование текущей должности': jobname,
+                }
+                input_data = input_data | additional_data
+                
+                input_df = pd.DataFrame([input_data])
+                            
+                st.write(input_df)
+                
+                # Preprocess input data
+                processed_data = preprocess_input(input_df.copy(), data_transform)
 
-            # Make prediction
-            prediction1 = predict(pipes[0], processed_data)
-            prediction2 = predict(pipes[1], processed_data)
+                # Display the processed data
+                # st.subheader("Processed Input Data")
+                # st.write(processed_data)
 
-            # Display prediction
-            st.subheader('Сфера деятельности по Классификатору ФОИР')
-            st.write(LE[0].classes_[prediction1])
-            
-            st.subheader("Карьерная ступень по Классификатору ФОИР")
-            st.write(LE[1].classes_[prediction2])
-            
-            print(LE[0].classes_[prediction1][0])
-            
-            # write input data into database
-            sql = """
-            INSERT INTO queries (gender, dob, country, district, region, education, workplace, jobname, inn, 
-                                okwed_type, okwed_1, okwed_2, okwed_3, capital_type, capital_value, okogu_type, 
-                                employee_cnt, smp_cat, taxes_2022, scope_work, сareer_stage) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
-            """
-            
-            pg_instance.cursor.execute(sql, (input_data['Пол'], 
-                                             input_data["Дата рождения"], 
-                                             input_data['Страна проживания'],
-                                             input_data['Федеральный округ'], 
-                                             input_data['Регион'], 
-                                             input_data['Уровень образования'], 
-                                             input_data['Место работы'], 
-                                             input_data['Наименование текущей должности'], 
-                                             input_data['ИНН'], 
-                                             input_data['Вид экономической деятельности, ОКВЭД'],
-                                             input_data['Доп вид экономической деятельности_1'],
-                                             input_data['Доп вид экономической деятельности_2'],
-                                             input_data['Доп вид экономической деятельности_3'],
-                                             input_data['Уставный капитал, тип'],
-                                             input_data['Уставный капитал, сумма'],
-                                             input_data['Тип по ОКОГУ'],
-                                             input_data['Среднесписочная численность сотрудников'],
-                                             input_data['Категория из реестра СМП'],
-                                             input_data['Сумма уплаченных налогов за 2020'],
-                                             str(LE[0].classes_[prediction1][0]),
-                                             int(LE[1].classes_[prediction2][0])))
+                # Make prediction
+                prediction1 = predict(pipes[0], processed_data)
+                prediction2 = predict(pipes[1], processed_data)
 
-    if st.button('Показать последние запросы'):
-        pg_instance.cursor.execute('select * from queries')
-        data = pg_instance.cursor.fetchall()
-        st.write(pd.DataFrame(data))
+                # Display prediction
+                st.subheader('Сфера деятельности по Классификатору ФОИР')
+                st.write(LE[0].classes_[prediction1])
+                
+                st.subheader("Карьерная ступень по Классификатору ФОИР")
+                st.write(LE[1].classes_[prediction2])
+                
+                print(LE[0].classes_[prediction1][0])
+                
+                # write input data into database
+                sql = """
+                INSERT INTO queries (gender, dob, country, district, region, education, workplace, jobname, inn, 
+                                    okwed_type, okwed_1, okwed_2, okwed_3, capital_type, capital_value, okogu_type, 
+                                    employee_cnt, smp_cat, taxes_2022, scope_work, сareer_stage) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+                """
+                
+                pg_instance.cursor.execute(sql, (input_data['Пол'], 
+                                                input_data["Дата рождения"], 
+                                                input_data['Страна проживания'],
+                                                input_data['Федеральный округ'], 
+                                                input_data['Регион'], 
+                                                input_data['Уровень образования'], 
+                                                input_data['Место работы'], 
+                                                input_data['Наименование текущей должности'], 
+                                                input_data['ИНН'], 
+                                                input_data['Вид экономической деятельности, ОКВЭД'],
+                                                input_data['Доп вид экономической деятельности_1'],
+                                                input_data['Доп вид экономической деятельности_2'],
+                                                input_data['Доп вид экономической деятельности_3'],
+                                                input_data['Уставный капитал, тип'],
+                                                input_data['Уставный капитал, сумма'],
+                                                input_data['Тип по ОКОГУ'],
+                                                input_data['Среднесписочная численность сотрудников'],
+                                                input_data['Категория из реестра СМП'],
+                                                input_data['Сумма уплаченных налогов за 2020'],
+                                                str(LE[0].classes_[prediction1][0]),
+                                                int(LE[1].classes_[prediction2][0])))
+
+        if st.button('Показать последние запросы'):
+            pg_instance.cursor.execute('select * from queries')
+            data = pg_instance.cursor.fetchall()
+            st.write(pd.DataFrame(data))
         
         
 if __name__ == "__main__":
