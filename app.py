@@ -2,14 +2,17 @@ import streamlit as st
 import pandas as pd
 import pickle
 from utils import BERTEmbExtractor
-from app_utils import select_workplaces
+from app_utils import select_workplaces, extract_workplace, pg_save, search_regexp, visualize
 import joblib
 import datetime
 from datetime import date
+import json
+
 
 from postgres import PGInstance
 
 st.set_page_config(layout="wide")
+
 
 @st.cache_resource
 def load_pg_instance():
@@ -78,6 +81,51 @@ def load_constants():
     labels = ["Label 1", "Label 2", "Label 3"]
     return countries, districts, regions, educations, labels
 
+@st.cache_data
+def load_dicts():
+    additional_data = {'Номер': None,
+            'ИНН': None,
+            'Вид экономической деятельности, ОКВЭД': None,
+            'Доп вид экономической деятельности_1': None,
+            'Доп вид экономической деятельности_2': None,
+            'Доп вид экономической деятельности_3': None,
+            'Уставный капитал, тип': None,
+            'Уставный капитал, сумма': None,
+            'Тип по ОКОГУ': None,
+            'Среднесписочная численность сотрудников': None,
+            'Категория из реестра СМП': None,
+            'Сумма уплаченных налогов за 2020': None,       
+            }
+
+    input_data = {
+                    "Пол": None,
+                    "Дата рождения": None,
+                    'Страна проживания': None,
+                    "Федеральный округ": None,
+                    "Регион": None,
+                    'Уровень образования': None,
+                    "Место работы": None,
+                    'Наименование текущей должности': None,
+                    }
+    return additional_data, input_data
+
+@st.cache_data
+def load_regexp():
+    with open("models/regexp_pattern.json") as file: 
+        regex_for_three_gov_fields = json.loads(file.read()) 
+        
+    matching_three_gov_fields = {'foiv':'Федеральные государственные органы, в т.ч. федеральная государственная служба',
+                            'roiv':'Региональные органы государственной власти, в т.ч. гражданская служба субъектов РФ',
+                            'mestnie':'Органы местного самоуправления (ОМСУ)',
+
+                            'foiv roiv':'Региональные органы государственной власти, в т.ч. гражданская служба субъектов РФ',
+                            'mestnie foiv':'Органы местного самоуправления (ОМСУ)',
+                            'mestnie foiv roiv':'Органы местного самоуправления (ОМСУ)', # вот тут вопрос!
+                            'mestnie roiv':'Органы местного самоуправления (ОМСУ)',
+                    }
+    
+    return matching_three_gov_fields, regex_for_three_gov_fields
+
 # Function to preprocess input data
 def preprocess_input(data, data_transform):
     data['Дата рождения'] = pd.to_datetime(data['Дата рождения'])
@@ -90,13 +138,44 @@ def preprocess_input(data, data_transform):
 def predict(model, data):
     return model.predict(data)
 
+@st.cache_data
+def predict_upload_df(uploat_df, _input_data, _additional_data, _data_transform, _pipes, _pg_instance, _LE):
+    preds1 = []
+    preds2 = []
+    
+    for i, (workplace, jobname) in uploat_df[['Место работы', 'Наименование текущей должности']].iterrows():
+        
+        _input_data['Место работы'] = workplace
+        _input_data['Наименование текущей должности'] = jobname
+        
+        _additional_data = extract_workplace(workplace, _additional_data)
+        _input_data = _input_data | _additional_data
+        input_df = pd.DataFrame([_input_data])
+
+        processed_data = preprocess_input(input_df.copy(), _data_transform)
+        prediction1 = predict(_pipes[0], processed_data)
+        prediction2 = predict(_pipes[1], processed_data)
+        
+        # pg_save(_pg_instance, _input_data, _LE, prediction1, prediction2)
+
+        preds1.append(_LE[0].classes_[prediction1])
+        preds2.append(_LE[1].classes_[prediction2])
+                
+    uploat_df['Сфера деятельности по Классификатору ФОИР'] = preds1
+    uploat_df['Карьерная ступень по Классификатору ФОИР'] = preds2
+    
+    return uploat_df
+
 
 # Streamlit app
 def main():
+    
+    additional_data, input_data = load_dicts()
     pipes = load_model()
     data_transform = load_data_transform()
     LE = load_label_encoder()
     pg_instance = load_pg_instance()
+    matching_three_gov_fields, regex_for_three_gov_fields = load_regexp()
     
     countries, districts, regions, educations, labels = load_constants()
     
@@ -107,7 +186,27 @@ def main():
         
     if uploaded_file:
         uploat_df = pd.read_excel(uploaded_file)
+        st.write('Загружен следующий файл:')
+        uploat_df = uploat_df.dropna()
+        # uploat_df = uploat_df.sample(10)
+        # st.write(uploat_df.columns)
+
         st.write(uploat_df)
+
+        # извлечем с помощью регулярки метки
+        uploat_df = search_regexp(uploat_df, regex_for_three_gov_fields, matching_three_gov_fields)
+        
+        st.write('Результат работы регулярных выражений:')
+        st.write(uploat_df)
+        
+        st.write('Результат прогноза модели:')
+        
+        uploat_df = predict_upload_df(uploat_df, input_data, additional_data, data_transform, pipes, pg_instance, LE)
+        
+        st.write(uploat_df)
+        
+        visualize(uploat_df.copy())
+        
         
     else:
         # Input form
@@ -137,22 +236,8 @@ def main():
         workplace = st.text_input("Место работы", None)
 
         if workplace and jobname:
-            additional_data = {'Номер': None,
-                        'ИНН': None,
-                        'Вид экономической деятельности, ОКВЭД': None,
-                        'Доп вид экономической деятельности_1': None,
-                        'Доп вид экономической деятельности_2': None,
-                        'Доп вид экономической деятельности_3': None,
-                        'Уставный капитал, тип': None,
-                        'Уставный капитал, сумма': None,
-                        'Тип по ОКОГУ': None,
-                        'Среднесписочная численность сотрудников': None,
-                        'Категория из реестра СМП': None,
-                        'Сумма уплаченных налогов за 2020': None,       
-                        }
                             
             additional_data = select_workplaces(workplace, additional_data)
-            
             
             if st.button("Вывести результаты"):
                 # Prepare input data
@@ -193,34 +278,7 @@ def main():
                 print(LE[0].classes_[prediction1][0])
                 
                 # write input data into database
-                sql = """
-                INSERT INTO queries (gender, dob, country, district, region, education, workplace, jobname, inn, 
-                                    okwed_type, okwed_1, okwed_2, okwed_3, capital_type, capital_value, okogu_type, 
-                                    employee_cnt, smp_cat, taxes_2022, scope_work, сareer_stage) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
-                """
-                
-                pg_instance.cursor.execute(sql, (input_data['Пол'], 
-                                                input_data["Дата рождения"], 
-                                                input_data['Страна проживания'],
-                                                input_data['Федеральный округ'], 
-                                                input_data['Регион'], 
-                                                input_data['Уровень образования'], 
-                                                input_data['Место работы'], 
-                                                input_data['Наименование текущей должности'], 
-                                                input_data['ИНН'], 
-                                                input_data['Вид экономической деятельности, ОКВЭД'],
-                                                input_data['Доп вид экономической деятельности_1'],
-                                                input_data['Доп вид экономической деятельности_2'],
-                                                input_data['Доп вид экономической деятельности_3'],
-                                                input_data['Уставный капитал, тип'],
-                                                input_data['Уставный капитал, сумма'],
-                                                input_data['Тип по ОКОГУ'],
-                                                input_data['Среднесписочная численность сотрудников'],
-                                                input_data['Категория из реестра СМП'],
-                                                input_data['Сумма уплаченных налогов за 2020'],
-                                                str(LE[0].classes_[prediction1][0]),
-                                                int(LE[1].classes_[prediction2][0])))
+                pg_save(pg_instance, input_data, LE, prediction1, prediction2)
 
         if st.button('Показать последние запросы'):
             pg_instance.cursor.execute('select * from queries')
