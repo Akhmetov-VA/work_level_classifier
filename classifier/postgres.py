@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from psycopg2 import connect
 from dataclasses import dataclass
 
+from psycopg2 import connect
 
 PG_USER = "postgres"
 PG_PASSWORD = "postgres"
 PG_HOST = "db"
 PG_PORT = 5432
+
 
 @dataclass
 class PGInstance:

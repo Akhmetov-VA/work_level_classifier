@@ -3,17 +3,15 @@ services:
   classifier:
     container_name: classifier
     volumes:
-      - /home/admin01/vadim/classifier:/app
+      - /home/vadim/work/work_level_classifier:/app
     build: .
     depends_on:
       - db
-    links:
-      - db:db
     networks:
-      - db
+      - classifier_net
     ports:
-      - "27362:8501"
-
+      - "27360:8501"
+    working_dir: /app/classifier
     command: ["streamlit", "run", "app.py"]
 
   db:
@@ -26,15 +24,15 @@ services:
       PGDATA: "/data/postgres"
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
-       - postgres:/data/postgres
-       - ${PWD}/docker_postgres_init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+      - postgres:/data/postgres
+      - ./classifier/docker_postgres_init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
     networks:
-      - db
+      - classifier_net
     ports:
       - "5433:5432"
 
 networks:
-  db:
+  classifier_net:
     driver: bridge
 
 volumes:

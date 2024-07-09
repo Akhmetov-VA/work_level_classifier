@@ -11,19 +11,20 @@ from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import StackingClassifier, ExtraTreesClassifier
 from sklearn.impute import KNNImputer
 
-from sklearn.model_selection import train_test_split, cross_val_score, RandomizedSearchCV
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 
-from utils import BERTEmbExtractor, find_best_ccp_aplpha, metrics
+from classifier.utils import BERTEmbExtractor, metrics
 import joblib
 import torch
 
 n_pca = 50
 n_iter = 400
+data_path = '/home/vadim/work/work_level_classifier/data/Таблица_данные_опроса_+_часть_из_обогащения_v_2.csv'
 
 
 tqdm.pandas()
 
-data = pd.read_csv('/home/admin01/vadim/classifier/data/Таблица_данные_опроса_+_часть_из_обогащения_v_2.csv')
+data = pd.read_csv(data_path)
 data = data.drop(columns=['ИНН', 'Степень уверенности', 'Кол-во вариантов с таким названием компании'])
 
 
@@ -174,10 +175,10 @@ metrics(pipes[1], X_val, y_val[1], LE[1])
 metrics(pipes[1], X_test, y_test[1], LE[1])
 
 # save pipes and transformer
-joblib.dump(pipes, 'models/pipelines.joblib')
+joblib.dump(pipes, '../models/pipelines.joblib')
 
 # data_prepare.steps[0][1].transformers[1][1].to_device(torch.device('cpu'))
-joblib.dump(data_prepare, 'models/data_prepare.joblib')
-joblib.dump(LE, 'models/label_encoders.joblib')
+joblib.dump(data_prepare, '../models/data_prepare.joblib')
+joblib.dump(LE, '../models/label_encoders.joblib')
 
 print('FINISH')
