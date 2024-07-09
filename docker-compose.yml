@@ -10,7 +10,7 @@ services:
     networks:
       - classifier_net
     ports:
-      - "27360:8501"
+      - "27363:8501"
     working_dir: /app/classifier
     command: ["streamlit", "run", "app.py"]
 

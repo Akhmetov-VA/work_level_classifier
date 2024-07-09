@@ -10,7 +10,8 @@ COPY pyproject.toml /app/pyproject.toml
 
 # Install any needed packages specified in requirements.txt
 RUN python -m pip install poetry==1.8.3
-RUN poetry install --only main
+RUN poetry config virtualenvs.create false --local
+RUN poetry install
 
 # Run app.py when the container launches
 CMD ["streamlit", "run", "classifier/app.py"]
