@@ -14,4 +14,4 @@ RUN poetry config virtualenvs.create false --local
 RUN poetry install
 
 # Run app.py when the container launches
-CMD ["streamlit", "run", "classifier/app.py"]
+CMD ["streamlit", "run", "app.py"]

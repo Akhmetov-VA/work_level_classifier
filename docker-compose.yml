@@ -11,7 +11,7 @@ services:
       - classifier_net
     ports:
       - "27363:8501"
-    working_dir: /app/classifier
+    working_dir: /app
     command: ["streamlit", "run", "app.py"]
 
   db:
@@ -28,8 +28,8 @@ services:
       - ./classifier/docker_postgres_init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
     networks:
       - classifier_net
-    ports:
-      - "5433:5432"
+    # ports:
+    #   - "5433:5432"
 
 networks:
   classifier_net:

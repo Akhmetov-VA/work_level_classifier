@@ -5,7 +5,7 @@ description = ""
 authors = ["Vadim"]
 readme = "README.md"
 packages = [
-    { include = "classifier" },
+    { include = "classifier/*" },
 ]
 
 [tool.poetry.dependencies]
