@@ -175,10 +175,10 @@ metrics(pipes[1], X_val, y_val[1], LE[1])
 metrics(pipes[1], X_test, y_test[1], LE[1])
 
 # save pipes and transformer
-joblib.dump(pipes, '../models/pipelines.joblib')
+joblib.dump(pipes, 'models/pipelines.joblib')
 
 # data_prepare.steps[0][1].transformers[1][1].to_device(torch.device('cpu'))
-joblib.dump(data_prepare, '../models/data_prepare.joblib')
-joblib.dump(LE, '../models/label_encoders.joblib')
+joblib.dump(data_prepare, 'models/data_prepare.joblib')
+joblib.dump(LE, 'models/label_encoders.joblib')
 
 print('FINISH')
